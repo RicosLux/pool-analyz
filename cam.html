@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Pool Water Analyzer</title>
+    <style>
+        #overlay {
+            position: absolute;
+            color: white;
+            font-size: 24px;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Pool Water Analyzer</h2>
+
+    <!-- Camera feed will be loaded into this video element -->
+    <video id="video" width="640" height="480" autoplay></video>
+    <div id="overlay"></div>
+
+    <script>
+        const video = document.getElementById('video');
+
+        // Prompt user to allow webcam access
+        navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+            video.srcObject = stream;
+            // After video feed is loaded, perform the analysis
+            video.onloadedmetadata = (e) => {
+                video.play();
+                analyzeFrame();
+            };
+        })
+        .catch((err) => {
+            console.error('Error accessing camera:', err);
+        });
+
+        function getAverageColor() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.width;
+            canvas.height = video.height;
+
+            ctx.drawImage(video, 0, 0, video.width, video.height);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let red = 0, green = 0, blue = 0;
+
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                red += imageData.data[i];
+                green += imageData.data[i + 1];
+                blue += imageData.data[i + 2];
+            }
+
+            const numPixels = imageData.data.length / 4;
+            red /= numPixels;
+            green /= numPixels;
+            blue /= numPixels;
+
+            return [Math.round(red), Math.round(green), Math.round(blue)];
+        }
+
+        function analyzeFrame() {
+            const [red, green, blue] = getAverageColor();
+
+            const overlay = document.getElementById('overlay');
+            
+            if (blue > 200 && red < 150 && green < 150) {
+                overlay.innerText = 'The water appears to be low in chlorine.';
+            } else if (green > 200 && red < 150 && blue < 150) {
+                overlay.innerText = 'The water appears to be high in chlorine.';
+            } else if (red > 200 && green < 150 && blue < 150) {
+                overlay.innerText = 'The water appears to be acidic.';
+            } else {
+                overlay.innerText = 'Water seems fine.';
+            }
+
+            // Check every 2 seconds
+            setTimeout(analyzeFrame, 2000);
+        }
+    </script>
+</body>
+</html>
